@@ -1,3 +1,135 @@
+# HW 4: 3D Stylization
+
+![turnaround](images/turnaround.gif)
+
+[Full turnaround video](images/turnaround.mp4)
+
+Open `Assets/Scenes/Stylized Scene.unity` and press Play. The camera rotates around the scene, and the day and night cycle runs automatically.
+
+- **Space:** advance to night during the day, or to morning at night.
+- **P:** pause or resume the automatic day and night cycle.
+
+## 1. Reference and Scene
+
+| <img width="360" src="images/concept.jpg"> | <img width="560" src="images/final_day.jpg"> |
+|:--:|:--:|
+| *Concept art by [trudicastle](https://twitter.com/trudicastle/status/1122648793009098752)* | *Scene in Unity* |
+
+I chose this reference because it has clear outlines, flat colors and visible pencil strokes in the shadows. The scene uses three tone shading, textured shadows and uneven outlines to follow this style. The colors of the stump, grass and boots are based on the reference.
+
+The sword, stump, leaf character, grass and rocks are made from Unity primitives. The main character uses the Sonic model from the stylization lab, with green clothing and red boots to match Link's colors. The sword parts are combined into `Assets/Models/Sword.asset` so that the vertex animation moves them together.
+
+| Day | Sunset | Night |
+|:--:|:--:|:--:|
+| ![day](images/final_day.jpg) | ![sunset](images/final_sunset.jpg) | ![night](images/final_night.jpg) |
+
+## 2. Surface Shader
+
+`Toon Surface.shadergraph` uses the `ToonSurface` custom function in `Assets/Shaders/Includes/ToonSurface.hlsl`. It extends the three tone shader from the lab. Two thresholds divide the diffuse lighting into highlight, midtone and shadow regions. The smoothness parameter controls the transitions between them.
+
+The shader supports the main light and additional lights. It calculates each additional light's diffuse contribution using the surface normal, light direction, distance attenuation and shadow attenuation. These contributions affect the tone selection. The light colors are also added to the surface color.
+
+The scene contains one directional light with soft shadows, a warm point light near the stump and a cool point light near the sword.
+
+![lights](images/lights.jpg)
+
+*Left: directional light only. Middle: directional light and two point lights. Right: point lights only.*
+
+The rim highlight uses a Fresnel term and is limited to the side facing the main light. The specular highlight uses the Blinn-Phong model. Both use narrow `smoothstep` transitions to create clear boundaries. Their colors and strengths can be adjusted in the material.
+
+The shadow texture was created with a Python script using PIL. It contains short strokes in two directions and a small amount of paper grain. The strokes wrap across the texture borders so the texture can repeat. The shader samples it using object UVs multiplied by `Shadow Scale`, then mixes the midtone and shadow colors in the shadow region. Cast shadows use the same pattern. Using object UVs keeps the pattern attached to the surface.
+
+![textures](images/textures.jpg)
+
+*Left: day shadow texture. Middle: night shadow texture. Right: paper texture.*
+
+## 3. Special Shader for the Sword
+
+`Hero Surface.shadergraph` uses the same surface lighting and adds `HeroGlow` and `HeroVertex` from `ToonSurface.hlsl`.
+
+`HeroGlow` changes between two colors using a sine function and fbm noise. A Fresnel term places the glow near the edges, and a repeating UV pattern creates a bright stripe that moves along the blade. `HeroVertex` moves the sword up and down and rotates it slightly from side to side. Both effects use time rounded to fixed intervals. The blade material uses 8 updates per second to give the animation a drawn appearance.
+
+![sword](images/sword.gif)
+
+*Left: day material. Right: night material with purple and teal glow.*
+
+The sword is placed on layer 3 and excluded from the Normal Feature. The normal pass uses an override material that does not include the sword's vertex animation. Including it would produce normal edges at the original position, which would not match the moving sword. Depth edges still provide its outline.
+
+## 4. Outlines
+
+The Full Screen Feature copies the camera image to a temporary buffer and applies the material. I added the second blit to copy the result back to the camera color buffer:
+
+```csharp
+Blit(cmd, colorBuffer, temporaryBuffer, settings.material);
+Blit(cmd, temporaryBuffer, colorBuffer);
+```
+
+Depth texture is enabled in the URP asset. The Normal Feature uses `Materials/Post/Normal Copy.mat` to write view space normals to `Buffers/Normal Buffer`. The buffer resolution is 1920 x 1080.
+
+<img width="600" src="images/normal_buffer.jpg">
+
+`Crayon Outline.shadergraph` uses `Includes/CrayonOutline.hlsl`. It applies the Roberts cross operator to linear eye depth and a 3x3 Sobel filter to the normal buffer. The depth difference is divided by the minimum sampled depth to reduce its dependence on distance.
+
+On the ground near the horizon, neighboring pixels can have large depth differences even when there is no object boundary. The shader uses the normal buffer to raise the depth threshold for surfaces viewed at a shallow angle. This reduces unwanted lines in that area.
+
+![outline boil](images/outline_boil.gif)
+
+Value noise changes the depth sample positions and line thickness 6 times per second. A separate noise pattern creates small gaps in the lines. Together, these produce an uneven crayon effect. The normal edges use fixed sample positions to keep the internal details clear. Line thickness, edge thresholds, noise settings and line color can be adjusted in the material.
+
+## 5. Full Screen Post Process
+
+`Paper Post.shadergraph` runs after the outline pass and uses `Includes/PaperPost.hlsl`.
+
+During the day, it slightly lowers saturation and shifts the colors toward warmer tones. It multiplies the image by a repeating paper texture and darkens the edges with a vignette. The paper texture was also made with the Python script, using soft patches and short lines to represent paper fibers.
+
+At night, the shader applies a blue tint and reduces saturation further. Animated fbm noise creates a fog effect near the bottom of the screen. The global value `_NightBlend` controls the transition between the day and night effects.
+
+![breakdown](images/breakdown.jpg)
+
+*Left: surface shading only. Middle: with outlines. Right: with the paper post process.*
+
+## 6. Interactivity
+
+`MaterialSwap.cs` stores one material set for each style. Each set can contain several materials because the Sonic model and sword have multiple material slots. This extends the single material example in the assignment.
+
+`StyleSwitcher.cs` responds to Space. When the day and night cycle is assigned, it advances the cycle toward night or morning. The cycle switches material sets when the night value crosses 0.5. If no cycle is assigned, the script switches materials directly and blends the lights, camera background and post process over 0.6 seconds.
+
+The night materials use cooler colors, a dot texture in the shadows and stronger rim highlights. The sword glow changes to purple and teal. The two point lights also become brighter at night.
+
+## 7. Extra Credit: Skybox and Day and Night Cycle
+
+![day cycle](images/day_cycle.jpg)
+
+*From left to right: dawn, day, sunset and night.*
+
+`Sketch Sky.shader` is an HLSL skybox shader that uses the functions in `Noise.hlsl`. The sky color changes from the horizon to the top of the sky in several soft bands. Separate day, sunset and night colors are blended during the cycle.
+
+The sun and moon are disks with uneven edges and dark outlines. A second disk, shifted to one side, creates the darker part of the moon. The clouds use fbm noise, two color tones and a thin outline. They move slowly across the sky. At night, stars appear and change brightness in steps. Below the horizon, the sky uses the ground color to make the edge of the ground plane less visible.
+
+![sky](images/sky.jpg)
+
+`DayNightCycle.cs` controls the time of day, with one full cycle lasting 40 seconds in the scene. A sine function controls the sun's elevation, and its horizontal angle changes over time. The directional light represents the sun during the day and the moon at night. Its direction, color and intensity change with the cycle.
+
+The script also adjusts the point lights and selects the material set. It sends `_SunDir`, `_MoonDir`, `_Sunset` and `_NightBlend` to the shaders. Near sunset, the low light angle produces longer cast shadows and places more of the ground in the textured shadow region.
+
+## 8. Render Feature Order
+
+| Feature | Event | Material |
+|---|---|---|
+| Normal Feature | After Rendering Opaques | Normal Copy |
+| Crayon Outline | After Rendering Transparents | Crayon Outline |
+| Paper Post | Before Rendering Post Processing | Paper Post |
+
+## Credits
+
+- Concept art: [trudicastle](https://twitter.com/trudicastle/status/1122648793009098752)
+- Sonic model: course stylization lab
+
+---
+
+<details>
+<summary>Original assignment instructions</summary>
+
 # HW 4: *3D Stylization*
 
 ## Project Overview:
@@ -218,3 +350,5 @@ Explore! What else can you do to polish your scene?
         - [Tutorial on Depth and Normal Buffer Robert's Cross Outliens in Unity](https://youtu.be/LMqio9NsqmM?si=zmtWxtdb1ViG2tFs)
     - [Alexander Ameye](https://ameye.dev/about/)
         - [Article on Edge Detection Post Process Outlines in Unity](https://ameye.dev/notes/edge-detection-outlines/)
+
+</details>

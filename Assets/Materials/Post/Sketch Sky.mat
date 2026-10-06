@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Sketch Sky
+  m_Shader: {fileID: 4800000, guid: b89131a079a5a41a7bd64e8275d62800, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _Bands: 5
+    - _BoilFps: 6
+    - _CloudCover: 0.42
+    - _CloudScale: 1.4
+    - _CloudSpeed: 0.03
+    - _MoonSize: 0.07
+    - _StarDensity: 0.3
+    - _SunSize: 0.1
+    m_Colors:
+    - _DayHorizon: {r: 0.97999996, g: 0.96999997, b: 0.94, a: 1}
+    - _DayZenith: {r: 0.8399999, g: 0.9, b: 0.96, a: 1}
+    - _GroundDay: {r: 0.93, g: 0.9, b: 0.8399999, a: 1}
+    - _GroundNight: {r: 0.39999998, g: 0.43999997, b: 0.6, a: 1}
+    - _LineColor: {r: 0.16999996, g: 0.13999996, b: 0.11999995, a: 1}
+    - _MoonColor: {r: 0.94, g: 0.95, b: 1, a: 1}
+    - _NightHorizon: {r: 0.21999997, g: 0.25999996, b: 0.45, a: 1}
+    - _NightZenith: {r: 0.06999998, g: 0.07999996, b: 0.17999998, a: 1}
+    - _SunColor: {r: 1, g: 0.85, b: 0.5, a: 1}
+    - _SunsetHorizon: {r: 0.98999995, g: 0.7, b: 0.47999996, a: 1}
+    - _SunsetZenith: {r: 0.6, g: 0.58, b: 0.78, a: 1}
+  m_BuildTextureStacks: []
